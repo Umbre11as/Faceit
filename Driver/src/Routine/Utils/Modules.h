@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Allocator/Allocator.h"
+#include "../String/String.h"
 
 #define NTOSKRNL_PATH R"(\SystemRoot\system32\ntoskrnl.exe)"
 
@@ -275,14 +276,67 @@ typedef struct _RTL_PROCESS_MODULES {
     RTL_PROCESS_MODULE_INFORMATION Modules[];
 } RTL_PROCESS_MODULES, *PRTL_PROCESS_MODULES;
 
+typedef struct _LDR_DATA_TABLE_ENTRY {
+    LIST_ENTRY InLoadOrderLinks;
+    LIST_ENTRY InMemoryOrderLinks;
+    LIST_ENTRY InInitializationOrderLinks;
+    PVOID DllBase;
+    PVOID EntryPoint;
+    ULONG SizeOfImage;
+    UNICODE_STRING FullDllName;
+    UNICODE_STRING BaseDllName;
+    ULONG Flags;
+    USHORT LoadCount;
+    USHORT TlsIndex;
+    LIST_ENTRY HashLinks;
+    ULONG TimeDateStamp;
+} LDR_DATA_TABLE_ENTRY, *PLDR_DATA_TABLE_ENTRY;
+
+typedef struct _PEB_LDR_DATA {
+    ULONG Length;
+    UCHAR Initialized;
+    PVOID SsHandle;
+    LIST_ENTRY InLoadOrderModuleList;
+    LIST_ENTRY InMemoryOrderModuleList;
+    LIST_ENTRY InInitializationOrderModuleList;
+} PEB_LDR_DATA, *PPEB_LDR_DATA;
+
+typedef struct _PEB {
+    UCHAR InheritedAddressSpace;
+    UCHAR ReadImageFileExecOptions;
+    UCHAR BeingDebugged;
+    UCHAR BitField;
+    PVOID Mutant;
+    PVOID ImageBaseAddress;
+    PPEB_LDR_DATA Ldr;
+    PVOID ProcessParameters;
+    PVOID SubSystemData;
+    PVOID ProcessHeap;
+    PVOID FastPebLock;
+    PVOID AtlThunkSListPtr;
+    PVOID IFEOKey;
+    PVOID CrossProcessFlags;
+    PVOID KernelCallbackTable;
+    ULONG SystemReserved;
+    ULONG AtlThunkSListPtr32;
+    PVOID ApiSetMap;
+} PEB, *PPEB;
+
 extern "C" {
     NTKERNELAPI PVOID NTAPI RtlFindExportedRoutineByName(IN PVOID ImageBase, IN PCCH RoutineNam);
 
     NTSTATUS NTAPI ZwQuerySystemInformation(IN SYSTEM_INFORMATION_CLASS SystemInformationClass, IN OUT PVOID SystemInformation, IN ULONG SystemInformationLength, OUT OPTIONAL PULONG ReturnLength);
+
+    NTKERNELAPI PPEB NTAPI PsGetProcessPeb(IN PEPROCESS Process);
 }
 
+struct ModuleInfo {
+    PVOID Base;
+    ULONG Size;
+};
+
 namespace Modules {
-    NTSTATUS GetSystemModule(IN PCSTR path, OUT PRTL_PROCESS_MODULE_INFORMATION outInformation) {
+    NTSTATUS GetSystemModule(IN PCSTR path, OUT ModuleInfo* outInfo) {
         ULONG size = 0;
         ZwQuerySystemInformation(SystemModuleInformation, nullptr, size, &size);
         if (size <= 0)
@@ -297,24 +351,59 @@ namespace Modules {
         for (ULONG i = 0; i < processModules->NumberOfModules; i++) {
             moduleInformation = processModules->Modules[i];
             if (strcmp(moduleInformation.FullPathName, path) == 0) {
-                break;
+                outInfo->Base = moduleInformation.ImageBase;
+                outInfo->Size = moduleInformation.ImageSize;
+
+                Allocator::FreeKernel(processModules);
+                return STATUS_SUCCESS;
             }
         }
 
-        *outInformation = moduleInformation;
         Allocator::FreeKernel(processModules);
-        return STATUS_SUCCESS;
+        return STATUS_NOT_FOUND;
     }
 
     PVOID GetSystemModuleBase(IN PCSTR path) {
-        RTL_PROCESS_MODULE_INFORMATION moduleInformation{};
+        ModuleInfo moduleInformation{};
         if (NT_SUCCESS(GetSystemModule(path, &moduleInformation)))
-            return moduleInformation.ImageBase;
+            return moduleInformation.Base;
 
         return nullptr;
     }
 
     PVOID GetExport(IN PVOID moduleBase, IN PCSTR functionName) {
         return RtlFindExportedRoutineByName(moduleBase, functionName);
+    }
+
+    NTSTATUS GetModuleBase(IN PEPROCESS process, IN PCSTR moduleName, OUT ModuleInfo* outInfo) {
+        PPEB peb = PsGetProcessPeb(process);
+        if (!peb)
+            return STATUS_BUFFER_ALL_ZEROS;
+
+        PUNICODE_STRING moduleUnicode = String(moduleName).UnicodeString();
+
+        // TODO: Bypass attach @ https://github.com/Umbre11as/DetectAttachProcess
+        KAPC_STATE state;
+        KeStackAttachProcess(process, &state);
+
+        PPEB_LDR_DATA ldr = peb->Ldr;
+        if (!ldr) {
+            KeUnstackDetachProcess(&state);
+            return STATUS_BUFFER_ALL_ZEROS;
+        }
+
+        PLIST_ENTRY list = &ldr->InLoadOrderModuleList;
+        for (PLIST_ENTRY entry = ldr->InLoadOrderModuleList.Flink; entry != list; entry = entry->Flink) {
+            PLDR_DATA_TABLE_ENTRY ldrTableEntry = CONTAINING_RECORD(list, LDR_DATA_TABLE_ENTRY, InLoadOrderLinks);
+
+            if (RtlCompareUnicodeString(&ldrTableEntry->BaseDllName, moduleUnicode, true) == 0) {
+                outInfo->Base = ldrTableEntry->DllBase;
+                outInfo->Size = ldrTableEntry->SizeOfImage;
+                return STATUS_SUCCESS;
+            }
+        }
+
+        KeUnstackDetachProcess(&state);
+        return STATUS_NOT_FOUND;
     }
 }

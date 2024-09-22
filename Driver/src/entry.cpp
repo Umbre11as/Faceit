@@ -10,6 +10,9 @@ NTSTATUS DriverEntry(IN PDRIVER_OBJECT, IN PUNICODE_STRING) {
     PVOID ntoskrnlBase = Modules::GetSystemModuleBase(NTOSKRNL_PATH);
     Log("ntoskrnl.exe: %p\n", ntoskrnlBase);
 
+    PVOID ntCompareSigningLevels = Modules::GetExport(ntoskrnlBase, "NtCompareSigningLevels");
+    Log("NtCompareSigningLevels: %p\n", ntCompareSigningLevels);
+
     return STATUS_SUCCESS;
 }
 
