@@ -15,7 +15,7 @@ public:
     explicit String(PUNICODE_STRING unicodeString) : ansiString(UnicodeToAnsi(unicodeString)) {}
     explicit String(PANSI_STRING ansiString) : ansiString(ansiString) {}
 public:
-    static PANSI_STRING UnicodeToAnsi(PUNICODE_STRING unicodeString) {
+    static PANSI_STRING UnicodeToAnsi(IN PUNICODE_STRING unicodeString) {
         auto ansiStr = new ANSI_STRING;
         ansiStr->Length = unicodeString->Length;
         ansiStr->MaximumLength = unicodeString->MaximumLength;
@@ -24,7 +24,7 @@ public:
         return ansiStr;
     }
 
-    static PUNICODE_STRING AnsiToUnicode(PANSI_STRING ansiString) {
+    static PUNICODE_STRING AnsiToUnicode(IN PANSI_STRING ansiString) {
         auto unicodeStr = new UNICODE_STRING;
         unicodeStr->Length = ansiString->Length;
         unicodeStr->MaximumLength = ansiString->MaximumLength;

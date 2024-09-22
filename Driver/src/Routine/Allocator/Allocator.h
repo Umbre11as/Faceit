@@ -7,15 +7,12 @@
 
 // Сорян за такие тупые названия
 namespace Allocator {
-    PVOID AllocateKernel(IN SIZE_T size, IN ULONG tag = 0) {
-        return ExAllocatePoolWithTag(NonPagedPool, size, tag);
+    PVOID AllocateKernel(IN SIZE_T size) {
+        return ExAllocatePool(NonPagedPool, size);
     }
 
-    void FreeKernel(IN PVOID buffer, IN ULONG tag = 0) {
-        if (tag == 0)
-            ExFreePool(buffer);
-        else
-            ExFreePoolWithTag(buffer, tag);
+    void FreeKernel(IN PVOID buffer) {
+        ExFreePool(buffer);
     }
 
     PVOID AllocatePhysical(IN SIZE_T size, IN PVOID virtualAddress, IN ULONG protect = 0, OUT PMDL* outMdl = nullptr) {

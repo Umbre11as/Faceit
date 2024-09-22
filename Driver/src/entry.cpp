@@ -7,7 +7,8 @@
 #define Log(format, ...) DbgPrintEx(0, 0, format, __VA_ARGS__)
 
 NTSTATUS DriverEntry(IN PDRIVER_OBJECT, IN PUNICODE_STRING) {
-    Log(String("Hello world").CString());
+    PVOID ntoskrnlBase = Modules::GetSystemModuleBase(NTOSKRNL_PATH);
+    Log("ntoskrnl.exe: %p\n", ntoskrnlBase);
 
     return STATUS_SUCCESS;
 }
