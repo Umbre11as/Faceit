@@ -4,14 +4,15 @@
 
 #include "Routine/Routine.h"
 
-#define Log(format, ...) DbgPrintEx(0, 0, format, __VA_ARGS__)
-
 NTSTATUS DriverEntry(IN PDRIVER_OBJECT, IN PUNICODE_STRING) {
     PVOID ntoskrnlBase = Modules::GetSystemModuleBase(NTOSKRNL_PATH);
     Log("ntoskrnl.exe: %p\n", ntoskrnlBase);
 
     PVOID ntCompareSigningLevels = Modules::GetExport(ntoskrnlBase, "NtCompareSigningLevels");
     Log("NtCompareSigningLevels: %p\n", ntCompareSigningLevels);
+
+    //Utils::Sleep(1000);
+    Utils::LogToFile("2 + 2 = %d\n", 4);
 
     return STATUS_SUCCESS;
 }

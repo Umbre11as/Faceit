@@ -15,6 +15,14 @@ public:
     explicit String(PUNICODE_STRING unicodeString) : ansiString(UnicodeToAnsi(unicodeString)) {}
     explicit String(PANSI_STRING ansiString) : ansiString(ansiString) {}
 public:
+    template<typename... Args>
+    static String Format(PCSTR text, Args... args) {
+        auto buffer = new char[1024];
+        RtlStringCbPrintfA(buffer, 1024, text, args...);
+
+        return String(buffer);
+    }
+public:
     static PANSI_STRING UnicodeToAnsi(IN PUNICODE_STRING unicodeString) {
         auto ansiStr = new ANSI_STRING;
         ansiStr->Length = unicodeString->Length;
@@ -29,7 +37,7 @@ public:
         unicodeStr->Length = ansiString->Length;
         unicodeStr->MaximumLength = ansiString->MaximumLength;
 
-        RtlAnsiStringToUnicodeString(unicodeStr, ansiString, FALSE);
+        RtlAnsiStringToUnicodeString(unicodeStr, ansiString, TRUE);
         return unicodeStr;
     }
 public:
@@ -43,6 +51,15 @@ public:
 
     PCSTR CString() const {
         return ansiString->Buffer;
+    }
+
+    SIZE_T Length() const {
+        PCSTR cstring = ansiString->Buffer;
+        SIZE_T length;
+        for (length = 0; *cstring != '\0'; cstring++)
+            length++;
+
+        return length;
     }
 private:
     PANSI_STRING ansiString;
