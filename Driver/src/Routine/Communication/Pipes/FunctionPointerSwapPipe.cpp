@@ -12,7 +12,7 @@ void Detour(PVOID buffer, SIZE_T size, ULONGLONG cookie) {
 }
 
 NTSTATUS FunctionPointerSwapPipe::Install(CommunicateRoutine routine) {
-    routine = ptrSwapCommunicate;
+    ptrSwapCommunicate = routine;
 
     PVOID ntoskrnlBase = Modules::GetSystemModuleBase(NTOSKRNL_PATH);
     if (!ntoskrnlBase)
