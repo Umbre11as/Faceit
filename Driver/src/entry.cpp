@@ -4,8 +4,14 @@
 
 #include "Routine/Routine.h"
 
-NTSTATUS DriverEntry(IN PDRIVER_OBJECT, IN PUNICODE_STRING) {
+void Communicate(PVOID buffer, SIZE_T size) {
+    Log("Communicate: %p - %lX\n", buffer, size);
+}
 
+NTSTATUS DriverEntry(IN PDRIVER_OBJECT, IN PUNICODE_STRING) {
+    NTSTATUS status = Communication::Setup(new FunctionPointerSwapPipe, Communicate);
+    if (!NT_SUCCESS(status))
+        Log("Cannot setup communication");
 
     return STATUS_SUCCESS;
 }

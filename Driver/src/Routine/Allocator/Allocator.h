@@ -7,50 +7,21 @@
 
 // Сорян за такие тупые названия
 namespace Allocator {
-    PVOID AllocateKernel(IN SIZE_T size) {
-        return ExAllocatePool(NonPagedPool, size);
-    }
+    PVOID AllocateKernel(IN SIZE_T size);
 
-    void FreeKernel(IN PVOID buffer) {
-        ExFreePool(buffer);
-    }
+    void FreeKernel(IN PVOID buffer);
 
-    PVOID AllocatePhysical(IN SIZE_T size, IN PVOID virtualAddress, IN ULONG protect = 0, OUT PMDL* outMdl = nullptr) {
-        PMDL mdl = IoAllocateMdl(virtualAddress, size, FALSE, FALSE, nullptr);
-        MmBuildMdlForNonPagedPool(mdl);
+    PVOID AllocatePhysical(IN SIZE_T size, IN PVOID virtualAddress, IN ULONG protect = 0, OUT PMDL* outMdl = nullptr);
 
-        PVOID mappingAddress = MmMapLockedPagesSpecifyCache(mdl, KernelMode, MmCached, nullptr, FALSE, NormalPagePriority);
-
-        if (protect > 0)
-            MmProtectMdlSystemAddress(mdl, protect);
-
-        if (outMdl)
-            *outMdl = mdl;
-
-        return mappingAddress;
-    }
-
-    void FreePhysical(IN PVOID buffer, IN PMDL mdl) {
-        MmUnmapLockedPages(buffer, mdl);
-        MmUnlockPages(mdl);
-        IoFreeMdl(mdl);
-    }
+    void FreePhysical(IN PVOID buffer, IN PMDL mdl);
 }
 
-PVOID operator new(IN SIZE_T size) {
-    return Allocator::AllocateKernel(size);
-}
+PVOID operator new(IN SIZE_T size);
 
-void operator delete(IN PVOID buffer) {
-    Allocator::FreeKernel(buffer);
-}
+void operator delete(IN PVOID buffer);
 
-PVOID operator new[](IN SIZE_T size) {
-    return Allocator::AllocateKernel(size);
-}
+PVOID operator new[](IN SIZE_T size);
 
-void operator delete[](IN PVOID buffer, IN SIZE_T) {
-    Allocator::FreeKernel(buffer);
-}
+void operator delete[](IN PVOID buffer, IN SIZE_T);
 
 #pragma clang diagnostic pop
