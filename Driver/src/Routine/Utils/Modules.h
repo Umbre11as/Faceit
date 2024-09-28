@@ -306,20 +306,14 @@ typedef struct _PEB {
     UCHAR ReadImageFileExecOptions;
     UCHAR BeingDebugged;
     UCHAR BitField;
+    ULONG ImageUsesLargePages: 1;
+    ULONG IsProtectedProcess: 1;
+    ULONG IsLegacyProcess: 1;
+    ULONG IsImageDynamicallyRelocated: 1;
+    ULONG SpareBits: 4;
     PVOID Mutant;
     PVOID ImageBaseAddress;
     PPEB_LDR_DATA Ldr;
-    PVOID ProcessParameters;
-    PVOID SubSystemData;
-    PVOID ProcessHeap;
-    PVOID FastPebLock;
-    PVOID AtlThunkSListPtr;
-    PVOID IFEOKey;
-    PVOID CrossProcessFlags;
-    PVOID KernelCallbackTable;
-    ULONG SystemReserved;
-    ULONG AtlThunkSListPtr32;
-    PVOID ApiSetMap;
 } PEB, *PPEB;
 
 extern "C" {

@@ -4,10 +4,43 @@
 
 #include "Routine/Routine.h"
 
+enum Request : unsigned int {
+    MODULE,
+    ATTACH
+};
+
+struct CommunicateInfo {
+    ULONG Request;
+    SIZE_T Size;
+    PVOID Information;
+};
+
+struct ModuleInformation {
+    PCSTR Name;
+    ULONGLONG Address;
+};
+
+PEPROCESS process = nullptr;
+
 void Communicate(PVOID buffer, SIZE_T size) {
-    Log("Communicate: %p - 0x%lX\n", buffer, size);
-    const char* string = reinterpret_cast<char*>(buffer);
-    Log("%s\n", string);
+    if (size != sizeof(CommunicateInfo))
+        return;
+
+    auto info = reinterpret_cast<CommunicateInfo*>(buffer);
+    switch (info->Request) {
+        case MODULE: {
+            auto moduleInfo = reinterpret_cast<ModuleInformation*>(info->Information);
+            moduleInfo->Address = reinterpret_cast<ULONGLONG>(Process::GetModuleBase(process, String(moduleInfo->Name)));
+
+            break;
+        }
+        case ATTACH: {
+            DWORD pid = *reinterpret_cast<DWORD*>(info->Information);
+            PsLookupProcessByProcessId(reinterpret_cast<HANDLE>(pid), &process);
+
+            break;
+        }
+    }
 }
 
 NTSTATUS DriverEntry(IN PDRIVER_OBJECT, IN PUNICODE_STRING) {

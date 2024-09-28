@@ -1,23 +1,27 @@
-#include <Windows.h>
-#include <cstdio>
+#include "Utils/CommunicationUtils.h"
+#include "Utils/ProcessUtils.h"
 
-typedef void(*NtCompareSigningLevelsFn)(PVOID buffer, SIZE_T size, ULONGLONG cookie);
-
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wwritable-strings"
+#pragma clang diagnostic ignored "-Wformat"
 int main() {
-    HMODULE ntDllModule = LoadLibrary("ntdll.dll");
-    if (!ntDllModule) {
-        fprintf(stderr, "Cannot open ntdll.dll\n");
+    if (!Communication::Setup())
+        return 1;
+    printf("Communication configured (Ptr swap)\n");
+
+    DWORD pid = 0;
+    if (!Utils::Process::FindProcess(L"cs2.exe", &pid)) {
+        MessageBox(nullptr, "Cannot find process", "Error", MB_OK);
         return 1;
     }
 
-    auto NtCompareSigningLevels = reinterpret_cast<NtCompareSigningLevelsFn>(GetProcAddress(ntDllModule, "NtCompareSigningLevels"));
-    if (!NtCompareSigningLevels) {
-        fprintf(stderr, "Cannot find NtCompareSigningLevels\n");
-        return 1;
-    }
+    printf("Process ID: 0x%lX (%ld)\n", pid, pid);
+    Utils::Communications::Attach(pid);
+    printf("Attached\n");
 
-    const char* string = "hello world\n";
-    NtCompareSigningLevels(const_cast<char*>(string), strlen(string) + 1, 0xABCCC2F);
+    ULONGLONG clientAddress = Utils::Communications::GetModuleAddress("client.dll");
+    printf("client.dll: %p\n", clientAddress);
 
     return 0;
 }
+#pragma clang diagnostic pop

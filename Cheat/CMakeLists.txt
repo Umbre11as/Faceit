@@ -4,3 +4,5 @@ project(Cheat)
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 
 add_executable(Cheat ${SOURCES})
+
+target_link_libraries(Cheat PUBLIC ntdll.dll)
