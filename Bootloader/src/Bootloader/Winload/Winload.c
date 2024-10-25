@@ -42,9 +42,6 @@ EFI_STATUS EFIAPI BlGetBootOptionBooleanDetour(__int64 a1, __int64 key, PBYTE ou
 typedef EFI_STATUS(EFIAPI* OSL_FWP_KERNEL_SETUP_PHASE1)(PVOID);
 HOOK HookOslFwpKernelSetupPhase1;
 
-
-
-
 typedef struct _UNICODE_STRING {
 	USHORT Length;
 	USHORT MaximumLength;
@@ -52,42 +49,7 @@ typedef struct _UNICODE_STRING {
 } UNICODE_STRING;
 typedef UNICODE_STRING* PUNICODE_STRING;
 
-typedef struct _IMAGE_INFO {
-	union {
-		ULONG Properties;
-		struct {
-			ULONG ImageAddressingMode : 8;  // Code addressing mode
-			ULONG SystemModeImage : 1;  // System mode image
-			ULONG ImageMappedToAllPids : 1;  // Image mapped into all processes
-			ULONG ExtendedInfoPresent : 1;  // IMAGE_INFO_EX available
-			ULONG MachineTypeMismatch : 1;  // Architecture type mismatch
-			ULONG ImageSignatureLevel : 4;  // Signature level
-			ULONG ImageSignatureType : 3;  // Signature type
-			ULONG ImagePartialMap : 1;  // Nonzero if entire image is not mapped
-			ULONG Reserved : 12;
-		};
-	};
-	PVOID       ImageBase;
-	ULONG       ImageSelector;
-	SIZE_T      ImageSize;
-	ULONG       ImageSectionNumber;
-} IMAGE_INFO, *PIMAGE_INFO;
-
 typedef void* HANDLE;
-typedef void(*PLOAD_IMAGE_NOTIFY_ROUTINE)(PUNICODE_STRING, HANDLE, PIMAGE_INFO);
-
-typedef long(__fastcall* PS_SET_LOAD_IMAGE_NOTIFY_ROUTINE_EX)(PLOAD_IMAGE_NOTIFY_ROUTINE, ULONGLONG);
-typedef ULONG(__stdcall* DBG_PRINT_EX)(ULONG, ULONG, const CHAR8*, ...);
-
-DBG_PRINT_EX DbgPrintEx = NULL;
-
-void LoadImageRoutine(PUNICODE_STRING imageName, HANDLE pid, PIMAGE_INFO imageInfo) {
-	if (imageName && imageName->Length) {
-		CHAR16* name = imageName->Buffer;
-		if (name && DbgPrintEx)
-			DbgPrintEx(0, 0, "%ws\n", name);
-	}
-}
 
 typedef struct _KLDR_DATA_TABLE_ENTRY {
 	struct _LIST_ENTRY InLoadOrderLinks;
@@ -148,13 +110,6 @@ EFI_STATUS EFIAPI OslFwpKernelSetupPhase1Detour(PLOADER_PARAMETER_BLOCK LoaderBl
 	HkInlineUnhook(&HookOslFwpKernelSetupPhase1);
 
 	KLDR_DATA_TABLE_ENTRY ntoskrnlModule = GetModule(&LoaderBlock->LoadOrderListHead, L"ntoskrnl.exe");
-
-	// TODO: Exports
-	PVOID dpex = SigFindSignature(ntoskrnlModule.DllBase, ntoskrnlModule.SizeOfImage, "4C 8B DC 4D 89 43 ? 4D 89 4B ? 48 83 EC ? 4D 8B C8");
-	DbgPrintEx = (DBG_PRINT_EX) dpex;
-
-	PVOID pslinrex = SigFindSignature(ntoskrnlModule.DllBase, ntoskrnlModule.SizeOfImage, "48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 48 8B 05 ? ? ? ? 48 33 C4 48 89 44 24 ? 48 8B F1 48 F7 C2");
-	((PS_SET_LOAD_IMAGE_NOTIFY_ROUTINE_EX) pslinrex)(LoadImageRoutine, 0);
 
 	BlpArchSwitchContext(BlRealMode);
 	LogPrint(gWinloadLogger, L"ntoskrnl.exe: %p", ntoskrnlModule.DllBase);
