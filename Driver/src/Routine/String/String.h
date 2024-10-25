@@ -8,15 +8,15 @@
 class String {
 public:
     String() = default;
-    explicit String(PCSTR cstring) {
+    explicit String(IN PCSTR cstring) {
         ansiString = new ANSI_STRING;
         RtlInitAnsiString(ansiString, cstring);
     }
-    explicit String(PUNICODE_STRING unicodeString) : ansiString(UnicodeToAnsi(unicodeString)) {}
-    explicit String(PANSI_STRING ansiString) : ansiString(ansiString) {}
+    explicit String(IN PUNICODE_STRING unicodeString) : ansiString(UnicodeToAnsi(unicodeString)) {}
+    explicit String(IN PANSI_STRING ansiString) : ansiString(ansiString) {}
 public:
     template<typename... Args>
-    static String Format(PCSTR text, Args... args) {
+    static String Format(IN PCSTR text, IN Args... args) {
         auto buffer = new char[1024];
         RtlStringCbPrintfA(buffer, 1024, text, args...);
 

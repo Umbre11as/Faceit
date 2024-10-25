@@ -10,7 +10,7 @@ typedef void(*THREAD_START_ROUTINE)();
 
 static THREAD_START_ROUTINE start;
 
-NTSTATUS CreateThread(THREAD_START_ROUTINE startRoutine, Thread thread) {
+NTSTATUS CreateThread(IN THREAD_START_ROUTINE startRoutine, IN Thread thread) {
     start = startRoutine;
     NTSTATUS status = PsCreateSystemThread(&thread.handle, THREAD_ALL_ACCESS, nullptr, nullptr, nullptr, [](PVOID context) {
         start();
@@ -19,6 +19,6 @@ NTSTATUS CreateThread(THREAD_START_ROUTINE startRoutine, Thread thread) {
     return status;
 }
 
-NTSTATUS CloseThread(Thread thread) {
+NTSTATUS CloseThread(IN Thread thread) {
     return ZwClose(thread.handle);
 }

@@ -4,7 +4,7 @@
 #include "Pipes/IoctlPipe.h"
 
 namespace Communication {
-    NTSTATUS Setup(CommunicationPipe* pipe, CommunicateRoutine routine) {
+    NTSTATUS Setup(IN CommunicationPipe* pipe, IN CommunicateRoutine routine) {
         NTSTATUS status = pipe->Install(routine);
         if (NT_SUCCESS(status))
             DbgPrintEx(0, 0, "Communication configured using %s pipe\n", pipe->ID());

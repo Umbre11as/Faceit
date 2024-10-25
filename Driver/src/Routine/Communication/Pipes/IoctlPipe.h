@@ -5,7 +5,7 @@
 
 class IoctlPipe : public CommunicationPipe {
 public:
-    IoctlPipe(PDRIVER_OBJECT driverObject);
+    explicit IoctlPipe(PDRIVER_OBJECT driverObject);
 public:
     NTSTATUS Install(CommunicateRoutine routine) override;
 private:

@@ -17,7 +17,7 @@ namespace Memory {
             return STATUS_BUFFER_ALL_ZEROS;
 
         __try {
-                MmProbeAndLockPages(mdl, KernelMode, IoReadAccess);
+            MmProbeAndLockPages(mdl, KernelMode, IoReadAccess);
         } __except (EXCEPTION_EXECUTE_HANDLER) {
             IoFreeMdl(mdl);
             return STATUS_ACCESS_DENIED;
@@ -91,12 +91,12 @@ namespace Memory {
 
     uintptr_t OldProcess;
 
-    void AttachProcess(IN PEPROCESS NewProcess) {
+    void AttachProcess(IN PEPROCESS process) {
         PKTHREAD Thread = KeGetCurrentThread();
 
         PKAPC_STATE ApcState = *(PKAPC_STATE*)(uintptr_t(Thread) + 0x98); // 0x98 = _KTHREAD::ApcState
 
-        if (*(PEPROCESS*)(uintptr_t(ApcState) + 0x20) == NewProcess) // 0x20 = _KAPC_STATE::Process
+        if (*(PEPROCESS*)(uintptr_t(ApcState) + 0x20) == process) // 0x20 = _KAPC_STATE::Process
             return;
 
         if ((*(UCHAR*)(uintptr_t(Thread) + 0x24a) != 0)) // 0x24a = _KTHREAD::ApcStateIndex
@@ -109,14 +109,14 @@ namespace Memory {
 
         OldProcess = *(uintptr_t*)(uintptr_t(ApcState) + 0x20);
 
-        *(PEPROCESS*)(uintptr_t(ApcState) + 0x20) = NewProcess; // 0x20 = _KAPC_STATE::Process
+        *(PEPROCESS*)(uintptr_t(ApcState) + 0x20) = process; // 0x20 = _KAPC_STATE::Process
         *(UCHAR*)(uintptr_t(ApcState) + 0x28) = 0;				// 0x28 = _KAPC_STATE::InProgressFlags
         *(UCHAR*)(uintptr_t(ApcState) + 0x29) = 0;				// 0x29 = _KAPC_STATE::KernelApcPending
         *(UCHAR*)(uintptr_t(ApcState) + 0x2a) = 0;				// 0x2a = _KAPC_STATE::UserApcPendingAll
 
         *(UCHAR*)(uintptr_t(Thread) + 0x24a) = 1; // 0x24a = _KTHREAD::ApcStateIndex
 
-        auto DirectoryTableBase = *(QWORD*)(QWORD(NewProcess) + 0x28);  // 0x28 = _EPROCESS::DirectoryTableBase
+        auto DirectoryTableBase = *(QWORD*)(QWORD(process) + 0x28);  // 0x28 = _EPROCESS::DirectoryTableBase
         __writecr3(DirectoryTableBase);
     }
 
@@ -157,7 +157,7 @@ namespace Memory {
     }
 
     // TODO: Use pml4 table to get physical address
-	PHYSICAL_ADDRESS SafeMmGetPhysicalAddress(IN PVOID BaseAddress) {
+	PHYSICAL_ADDRESS SafeMmGetPhysicalAddress(IN PVOID virtualAddress) {
         static BOOLEAN* KdEnteredDebugger = nullptr;
         if (!KdEnteredDebugger) {
             UNICODE_STRING UniCodeFunctionName = RTL_CONSTANT_STRING(L"KdEnteredDebugger");
@@ -165,7 +165,7 @@ namespace Memory {
         }
 
         *KdEnteredDebugger = TRUE;
-        PHYSICAL_ADDRESS PhysicalAddress = MmGetPhysicalAddress(BaseAddress);
+        PHYSICAL_ADDRESS PhysicalAddress = MmGetPhysicalAddress(virtualAddress);
         *KdEnteredDebugger = FALSE;
 
         return PhysicalAddress;

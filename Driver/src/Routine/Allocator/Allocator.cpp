@@ -1,9 +1,12 @@
 #include "Allocator.h"
 
 namespace Allocator {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations" // Allows windows support up to 1909
     PVOID AllocateKernel(IN SIZE_T size) {
         return ExAllocatePool(NonPagedPool, size);
     }
+#pragma clang diagnostic pop
 
     void FreeKernel(IN PVOID buffer) {
         ExFreePool(buffer);

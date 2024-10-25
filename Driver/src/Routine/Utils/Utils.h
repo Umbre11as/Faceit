@@ -6,7 +6,7 @@
 
 namespace Utils {
     // Credits @ https://github.com/vRare/AutoSpitta-x64/blob/master/hacks.c#L9
-    NTSTATUS Sleep(ULONGLONG milliseconds) {
+    NTSTATUS Sleep(IN ULONGLONG milliseconds) {
         LARGE_INTEGER delay;
         ULONG* split;
 
@@ -23,14 +23,12 @@ namespace Utils {
     }
 
     template<typename... Args>
-    void LogToFile(PCSTR text, Args... args) {
+    void LogToFile(IN String filePath, IN PCSTR text, IN Args... args) {
         String formatted = String::Format(text, args...);
 
         HANDLE fileHandle;
         OBJECT_ATTRIBUTES objectAttributes;
         IO_STATUS_BLOCK ioStatusBlock;
-
-        String filePath = String(R"(\DosDevices\C:\Users\admin\Desktop\logging.txt)");
 
         InitializeObjectAttributes(&objectAttributes, filePath.UnicodeString(), OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, nullptr, nullptr)
 
