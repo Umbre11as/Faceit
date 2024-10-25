@@ -4,7 +4,7 @@
 #pragma clang diagnostic ignored "-Wextern-initializer"
 extern const UINT32 _gUefiDriverRevision = 0x200;
 extern const UINT32 _gDxeRevision = 0x200;
-extern CHAR8* gEfiCallerBaseName = "InsaneTweaker";
+extern CHAR8* gEfiCallerBaseName = "Bootloader";
 
 EFI_STATUS EFIAPI UefiUnload(IN EFI_HANDLE ImageHandle) {
     return EFI_ACCESS_DENIED;
