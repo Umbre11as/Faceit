@@ -3,3 +3,4 @@ project(Faceit)
 
 add_subdirectory(Driver)
 add_subdirectory(Cheat)
+add_subdirectory(Bootloader)

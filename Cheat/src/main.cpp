@@ -11,9 +11,14 @@ struct C_BaseEntity {
 
 };
 
+enum Offsets : ULONGLONG {
+    ENTITY_LIST = 27065416,
+    LOCAL_PLAYER_PAWN = 25381656,
+};
+
 template<typename T = C_BaseEntity>
 T* GetEntity(ULONGLONG client, int index) {
-    static auto entityList = Read<ULONGLONG>(client + 27065416);
+    static auto entityList = Read<ULONGLONG>(client + ENTITY_LIST);
     auto entry = Read<ULONGLONG>(entityList + 0x8 * ((index & 0x7FFF) >> 9) + 16);
 
     return Read<T*>(entry + 120 * (index & 0x1FF));
@@ -41,7 +46,7 @@ int main() {
         return 1;
     }
 
-    auto localPlayerPawn = Read<C_BaseEntity*>(clientAddress + 25381656);
+    auto localPlayerPawn = Read<C_BaseEntity*>(clientAddress + LOCAL_PLAYER_PAWN);
     printf("local pawn: %p\n", localPlayerPawn);
     if (!localPlayerPawn)
         return 1;

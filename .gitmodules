@@ -1,0 +1,3 @@
+[submodule "Bootloader/VisualUefi"]
+	path = Bootloader/VisualUefi
+	url = https://github.com/ionescu007/VisualUefi
