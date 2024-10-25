@@ -574,12 +574,27 @@ typedef struct _EPROCESS {
 
 extern "C" {
     NTSTATUS NTAPI ZwQueryInformationProcess(IN HANDLE ProcessHandle, IN PROCESSINFOCLASS ProcessInformationClass, OUT PVOID ProcessInformation, IN ULONG ProcessInformationLength, OUT OPTIONAL PULONG ReturnLength);
+
+    BOOLEAN NTAPI ObReferenceObjectSafe(IN PVOID Object);
 }
 
 namespace Process {
-    PVOID GetModuleBase(IN PEPROCESS process, IN String moduleName) {
-        // TODO: GetModuleBase with no attach
+    PVOID GetModuleBaseProcess(IN PEPROCESS process, IN String moduleName) {
+        PVOID moduleBase = nullptr;
+        PUNICODE_STRING nameUnicode = moduleName.UnicodeString();
 
-        return nullptr;
+        PPEB peb = PsGetProcessPeb(process);
+        Memory::AttachProcess(process);
+
+        for (PLIST_ENTRY entry = peb->Ldr->InMemoryOrderModuleList.Flink; entry != &peb->Ldr->InMemoryOrderModuleList; entry = entry->Flink) {
+            PLDR_DATA_TABLE_ENTRY ldrTableEntry = CONTAINING_RECORD(entry, LDR_DATA_TABLE_ENTRY, InMemoryOrderLinks);
+            if (RtlEqualUnicodeString(&ldrTableEntry->BaseDllName, nameUnicode, TRUE) == TRUE) {
+                moduleBase = ldrTableEntry->DllBase;
+                break;
+            }
+        }
+
+        Memory::DetachProcess();
+        return moduleBase;
     }
 }

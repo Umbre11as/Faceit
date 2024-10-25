@@ -39,36 +39,4 @@ namespace Modules {
     PVOID GetExport(IN PVOID moduleBase, IN PCSTR functionName) {
         return RtlFindExportedRoutineByName(moduleBase, functionName);
     }
-
-    NTSTATUS GetModuleBase(IN PEPROCESS process, IN PCSTR moduleName, OUT ModuleInfo* outInfo) {
-        PPEB peb = PsGetProcessPeb(process);
-        if (!peb)
-            return STATUS_BUFFER_ALL_ZEROS;
-
-        PUNICODE_STRING moduleUnicode = String(moduleName).UnicodeString();
-
-        // TODO: Bypass attach @ https://github.com/Umbre11as/DetectAttachProcess
-        KAPC_STATE state;
-        KeStackAttachProcess(process, &state);
-
-        PPEB_LDR_DATA ldr = peb->Ldr;
-        if (!ldr) {
-            KeUnstackDetachProcess(&state);
-            return STATUS_BUFFER_ALL_ZEROS;
-        }
-
-        PLIST_ENTRY list = &ldr->InLoadOrderModuleList;
-        for (PLIST_ENTRY entry = ldr->InLoadOrderModuleList.Flink; entry != list; entry = entry->Flink) {
-            PLDR_DATA_TABLE_ENTRY ldrTableEntry = CONTAINING_RECORD(list, LDR_DATA_TABLE_ENTRY, InLoadOrderLinks);
-
-            if (RtlCompareUnicodeString(&ldrTableEntry->BaseDllName, moduleUnicode, true) == 0) {
-                outInfo->Base = ldrTableEntry->DllBase;
-                outInfo->Size = ldrTableEntry->SizeOfImage;
-                return STATUS_SUCCESS;
-            }
-        }
-
-        KeUnstackDetachProcess(&state);
-        return STATUS_NOT_FOUND;
-    }
 }

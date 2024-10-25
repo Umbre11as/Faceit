@@ -6,7 +6,8 @@
 
 enum Request : unsigned int {
     MODULE,
-    ATTACH
+    ATTACH,
+    READ_VIRTUAL
 };
 
 struct CommunicateInfo {
@@ -20,6 +21,13 @@ struct ModuleInformation {
     ULONGLONG Address;
 };
 
+struct ReadMemoryInformation {
+    PVOID Address;
+    PVOID Buffer;
+    SIZE_T Size;
+    NTSTATUS* Status;
+};
+
 PEPROCESS process = nullptr;
 
 void Communicate(PVOID buffer, SIZE_T size) {
@@ -30,13 +38,19 @@ void Communicate(PVOID buffer, SIZE_T size) {
     switch (info->Request) {
         case MODULE: {
             auto moduleInfo = reinterpret_cast<ModuleInformation*>(info->Information);
-            moduleInfo->Address = reinterpret_cast<ULONGLONG>(Process::GetModuleBase(process, String(moduleInfo->Name)));
+            moduleInfo->Address = reinterpret_cast<ULONGLONG>(Process::GetModuleBaseProcess(process, String(moduleInfo->Name)));
 
             break;
         }
         case ATTACH: {
             DWORD pid = *reinterpret_cast<DWORD*>(info->Information);
             PsLookupProcessByProcessId(reinterpret_cast<HANDLE>(pid), &process);
+
+            break;
+        }
+        case READ_VIRTUAL: {
+            auto readInfo = reinterpret_cast<ReadMemoryInformation*>(info->Information);
+            *readInfo->Status = Memory::ReadVirtualMemory(process, readInfo->Buffer, readInfo->Address, readInfo->Size);
 
             break;
         }

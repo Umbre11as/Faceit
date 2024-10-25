@@ -69,115 +69,144 @@ namespace Memory {
         return STATUS_SUCCESS;
     }
 
-    void CopyList(IN PLIST_ENTRY original, IN PLIST_ENTRY copy, IN KPROCESSOR_MODE mode) {
-        if (IsListEmpty(&original[mode]))
-            InitializeListHead(&copy[mode]);
+    // Credits @ https://www.unknowncheats.me/forum/anti-cheat-bypass/489305-read-write-process-attach.html
+
+    void CopyList(IN PLIST_ENTRY Original, IN PLIST_ENTRY Copy, IN KPROCESSOR_MODE Mode) {
+        if (IsListEmpty(&Original[Mode]))
+            InitializeListHead(&Copy[Mode]);
         else {
-            copy[mode].Flink = original[mode].Flink;
-            copy[mode].Blink = original[mode].Blink;
-            original[mode].Flink->Blink = &copy[mode];
-            original[mode].Blink->Flink = &copy[mode];
+            Copy[Mode].Flink = Original[Mode].Flink;
+            Copy[Mode].Blink = Original[Mode].Blink;
+            Original[Mode].Flink->Blink = &Copy[Mode];
+            Original[Mode].Blink->Flink = &Copy[Mode];
         }
     }
 
-    void MoveApcState(IN PKAPC_STATE oldState, IN PKAPC_STATE newState) {
-        memcpy(newState, oldState, sizeof(KAPC_STATE));
+    void MoveApcState(IN PKAPC_STATE OldState, OUT PKAPC_STATE NewState) {
+	    RtlCopyMemory(NewState, OldState, sizeof(KAPC_STATE));
 
-        CopyList(oldState->ApcListHead, newState->ApcListHead, KernelMode);
-        CopyList(oldState->ApcListHead, newState->ApcListHead, UserMode);
+        CopyList(OldState->ApcListHead, NewState->ApcListHead, KernelMode);
+        CopyList(OldState->ApcListHead, NewState->ApcListHead, UserMode);
     }
 
-    // Credits @ https://www.unknowncheats.me/forum/anti-cheat-bypass/489305-read-write-process-attach.html
+    uintptr_t OldProcess;
 
-    ULONGLONG oldProcess;
+    void AttachProcess(IN PEPROCESS NewProcess) {
+        PKTHREAD Thread = KeGetCurrentThread();
 
-    void AttachProcess(PEPROCESS process) {
-        PKTHREAD thread = KeGetCurrentThread();
-        PKAPC_STATE apcState = *reinterpret_cast<PKAPC_STATE*>(reinterpret_cast<ULONGLONG>(thread) + 0x98);
+        PKAPC_STATE ApcState = *(PKAPC_STATE*)(uintptr_t(Thread) + 0x98); // 0x98 = _KTHREAD::ApcState
 
-        if (*reinterpret_cast<UCHAR*>(reinterpret_cast<ULONGLONG>(thread) + 0x24a) == 0)
+        if (*(PEPROCESS*)(uintptr_t(ApcState) + 0x20) == NewProcess) // 0x20 = _KAPC_STATE::Process
             return;
 
-        MoveApcState(apcState, *reinterpret_cast<PKAPC_STATE*>(reinterpret_cast<ULONGLONG>(thread) + 0x258));
+        if ((*(UCHAR*)(uintptr_t(Thread) + 0x24a) != 0)) // 0x24a = _KTHREAD::ApcStateIndex
+            return;
 
-        InitializeListHead(&apcState->ApcListHead[KernelMode]);
-        InitializeListHead(&apcState->ApcListHead[UserMode]);
+        MoveApcState(ApcState, *(PKAPC_STATE*)(uintptr_t(Thread) + 0x258)); // 0x258 = _KTHREAD::SavedApcState
 
-        oldProcess = *reinterpret_cast<ULONGLONG*>(reinterpret_cast<ULONGLONG>(apcState) + 0x20);
+        InitializeListHead(&ApcState->ApcListHead[KernelMode]);
+        InitializeListHead(&ApcState->ApcListHead[UserMode]);
 
-        *reinterpret_cast<PEPROCESS*>(reinterpret_cast<ULONGLONG>(apcState) + 0x20) = process;
-        *reinterpret_cast<UCHAR*>(reinterpret_cast<ULONGLONG>(apcState) + 0x28) = 0;
-        *reinterpret_cast<UCHAR*>(reinterpret_cast<ULONGLONG>(apcState) + 0x29) = 0;
-        *reinterpret_cast<UCHAR*>(reinterpret_cast<ULONGLONG>(apcState) + 0x2a) = 0;
-        *reinterpret_cast<UCHAR*>(reinterpret_cast<ULONGLONG>(thread) + 0x24a) = 1;
+        OldProcess = *(uintptr_t*)(uintptr_t(ApcState) + 0x20);
 
-        auto directoryTableBase = *reinterpret_cast<ULONGLONG*>(reinterpret_cast<ULONGLONG>(process) + 0x28);
-        __writecr3(directoryTableBase);
+        *(PEPROCESS*)(uintptr_t(ApcState) + 0x20) = NewProcess; // 0x20 = _KAPC_STATE::Process
+        *(UCHAR*)(uintptr_t(ApcState) + 0x28) = 0;				// 0x28 = _KAPC_STATE::InProgressFlags
+        *(UCHAR*)(uintptr_t(ApcState) + 0x29) = 0;				// 0x29 = _KAPC_STATE::KernelApcPending
+        *(UCHAR*)(uintptr_t(ApcState) + 0x2a) = 0;				// 0x2a = _KAPC_STATE::UserApcPendingAll
+
+        *(UCHAR*)(uintptr_t(Thread) + 0x24a) = 1; // 0x24a = _KTHREAD::ApcStateIndex
+
+        auto DirectoryTableBase = *(QWORD*)(QWORD(NewProcess) + 0x28);  // 0x28 = _EPROCESS::DirectoryTableBase
+        __writecr3(DirectoryTableBase);
     }
 
-    PHYSICAL_ADDRESS SafeMmGetPhysicalAddress(IN PVOID address) {
+    void DetachProcess() {
+        PKTHREAD Thread = KeGetCurrentThread();
+        PKAPC_STATE ApcState = *(PKAPC_STATE*)(uintptr_t(Thread) + 0x98); // 0x98 = _KTHREAD->ApcState
+
+        if ((*(UCHAR*)(uintptr_t(Thread) + 0x24a) == 0)) // 0x24a = KTHREAD->ApcStateIndex
+            return;
+
+        if ((*(UCHAR*)(uintptr_t(ApcState) + 0x28)) ||  // 0x28 = _KAPC_STATE->InProgressFlags
+            !(IsListEmpty(&ApcState->ApcListHead[KernelMode])) ||
+            !(IsListEmpty(&ApcState->ApcListHead[UserMode])))
+        {
+            KeBugCheck(INVALID_PROCESS_DETACH_ATTEMPT);
+        }
+
+        MoveApcState(*(PKAPC_STATE*)(uintptr_t(Thread) + 0x258), ApcState); // 0x258 = _KTHREAD::SavedApcState
+
+        if (OldProcess)
+            *(uintptr_t*)(uintptr_t(ApcState) + 0x20) = OldProcess; // 0x20 = _KAPC_STATE::Process
+
+        *(PEPROCESS*)(*(uintptr_t*)(uintptr_t(Thread) + 0x258) + 0x20) = 0; // 0x258 = _KTHREAD::SavedApcState + 0x20 = _KAPC_STATE::Process
+
+        *(UCHAR*)(uintptr_t(Thread) + 0x24a) = 0; // 0x24a = _KTHREAD::ApcStateIndex
+
+        auto DirectoryTableBase = *(QWORD*)(QWORD(*(PEPROCESS*)(uintptr_t(ApcState) + 0x20)) + 0x28); // 0x20 = _KAPC_STATE::Process + 0x28 = _EPROCESS::DirectoryTableBase
+        __writecr3(DirectoryTableBase);
+
+        if (!(IsListEmpty(&ApcState->ApcListHead[KernelMode])))
+        {
+            *(UCHAR*)(QWORD(ApcState) + 0x29) = 1; // 0x29 = _KAPC_STATE::KernelApcPending
+        }
+
+        RemoveEntryList(&ApcState->ApcListHead[KernelMode]);
+
+        OldProcess = 0;
+    }
+
+    // TODO: Use pml4 table to get physical address
+	PHYSICAL_ADDRESS SafeMmGetPhysicalAddress(IN PVOID BaseAddress) {
         static BOOLEAN* KdEnteredDebugger = nullptr;
         if (!KdEnteredDebugger) {
-            UNICODE_STRING functionName;
-            RtlInitUnicodeString(&functionName, L"KdEnteredDebugger");
-
-            KdEnteredDebugger = reinterpret_cast<BOOLEAN*>(MmGetSystemRoutineAddress(&functionName));
+            UNICODE_STRING UniCodeFunctionName = RTL_CONSTANT_STRING(L"KdEnteredDebugger");
+            KdEnteredDebugger = reinterpret_cast<BOOLEAN*>(MmGetSystemRoutineAddress(&UniCodeFunctionName));
         }
 
         *KdEnteredDebugger = TRUE;
-        PHYSICAL_ADDRESS PhysicalAddress = MmGetPhysicalAddress(address);
+        PHYSICAL_ADDRESS PhysicalAddress = MmGetPhysicalAddress(BaseAddress);
         *KdEnteredDebugger = FALSE;
 
         return PhysicalAddress;
     }
 
-    void DetachProcess() {
-        PKTHREAD thread = KeGetCurrentThread();
-        PKAPC_STATE apcState = *reinterpret_cast<PKAPC_STATE*>(reinterpret_cast<ULONGLONG>(thread) + 0x98);
+	NTSTATUS ReadVirtualMemory(IN PEPROCESS Process, OUT PVOID Destination, IN PVOID Source, IN SIZE_T Size) {
+        NTSTATUS ntStatus = STATUS_UNSUCCESSFUL;
+        PHYSICAL_ADDRESS SourcePhysicalAddress;
+        PVOID MappedIoSpace;
+        BOOLEAN IsAttached;
 
-        if (*reinterpret_cast<UCHAR*>(reinterpret_cast<ULONGLONG>(thread) + 0x24a) == 0)
-            return;
+        AttachProcess(Process);
+        IsAttached = TRUE;
 
-        MoveApcState(*reinterpret_cast<PKAPC_STATE*>(reinterpret_cast<ULONGLONG>(thread) + 0x258), apcState);
+        if (!MmIsAddressValid(Source))
+            goto _Exit;
 
-        if (oldProcess)
-            *reinterpret_cast<ULONGLONG*>(reinterpret_cast<ULONGLONG>(apcState) + 0x20) = oldProcess;
+        SourcePhysicalAddress = SafeMmGetPhysicalAddress(Source);
 
-        *reinterpret_cast<PEPROCESS*>(*reinterpret_cast<uintptr_t*>(reinterpret_cast<ULONGLONG>(thread) + 0x258) + 0x20) = nullptr;
-        *reinterpret_cast<UCHAR*>(reinterpret_cast<ULONGLONG>(thread) + 0x24a) = 0;
-
-        auto directoryTableBase = *reinterpret_cast<ULONGLONG*>(reinterpret_cast<ULONGLONG>(*reinterpret_cast<PEPROCESS*>(reinterpret_cast<ULONGLONG>(apcState) + 0x20)) + 0x28);
-        __writecr3(directoryTableBase);
-
-        if (!(IsListEmpty(&apcState->ApcListHead[KernelMode])))
-            *reinterpret_cast<UCHAR*>(reinterpret_cast<ULONGLONG>(apcState) + 0x29) = 1;
-
-        RemoveEntryList(&apcState->ApcListHead[KernelMode]);
-        oldProcess = 0;
-    }
-
-    NTSTATUS SafeReadVirtual(PEPROCESS process, PVOID dst, PVOID src, SIZE_T size) {
-        AttachProcess(process);
-        if (!MmIsAddressValid(src)) {
-            DetachProcess();
-            return STATUS_INVALID_ADDRESS;
-        }
-
-        PHYSICAL_ADDRESS srcPhysical = SafeMmGetPhysicalAddress(src);
         DetachProcess();
+        IsAttached = FALSE;
 
-        if (!srcPhysical.QuadPart)
-            return STATUS_UNSUCCESSFUL;
+        if (!SourcePhysicalAddress.QuadPart)
+            return ntStatus;
 
-        // TODO: MmMapIoSpaceEx, memcpy bypass
-        PVOID mappedIoSpace = MmMapIoSpaceEx(srcPhysical, size, PAGE_READWRITE);
-        if (!mappedIoSpace)
-            return STATUS_UNSUCCESSFUL;
+        MappedIoSpace = MmMapIoSpaceEx(SourcePhysicalAddress, Size, PAGE_READWRITE);
+        if (!MappedIoSpace)
+            goto _Exit;
 
-        memcpy(dst, mappedIoSpace, size);
+        memcpy(Destination, MappedIoSpace, Size);
 
-        MmUnmapIoSpace(mappedIoSpace, size);
-        return STATUS_SUCCESS;
+        MmUnmapIoSpace(MappedIoSpace, Size);
+
+        ntStatus = STATUS_SUCCESS;
+
+        _Exit:
+
+            if (IsAttached)
+                DetachProcess();
+
+        return ntStatus;
     }
 }
 
