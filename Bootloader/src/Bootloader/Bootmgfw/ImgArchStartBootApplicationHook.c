@@ -13,8 +13,7 @@ HOOK HookImgArchStartBoot;
 EFI_STATUS EFIAPI ImgArchStartBootApplicationDetour(PVOID AppEntry, PVOID ImageBase, UINT ImageSize, BYTE BootOption, PVOID ReturnArgs) {
 	HkInlineUnhook(&HookImgArchStartBoot);
 
-	BlSetupGraphics();
-	BlDisplayLogo(TRUE);
+	BlDisplayLogo(FALSE);
 
 	HkSetupWinloadHooks(ImageBase, ImageSize);
 	
@@ -25,7 +24,7 @@ EFI_STATUS EFIAPI ImgArchStartBootApplicationDetour(PVOID AppEntry, PVOID ImageB
 
 EFI_STATUS HkSetupImgArchStartBootHook(IN EFI_LOADED_IMAGE* LoadedImage) {
 	EFI_STATUS status = EFI_SUCCESS;
-
+    
 	PVOID signature = SigFindSignature(LoadedImage->ImageBase, LoadedImage->ImageSize, "48 8B C4 48 89 58 ? 44 89 40 ? 48 89 50 ? 48 89 48 ? 55 56 57 41 54 41 55 41 56 41 57 48 8D 68 ? 48 81 EC ? ? ? ? 48 8B F9");
 	if (!signature)
 		return EFI_NOT_FOUND;

@@ -4,7 +4,10 @@
 #define OUT
 #define OPTIONAL
 
+typedef char CHAR;
+typedef char* PCHAR;
 typedef unsigned char BYTE;
+typedef BYTE UCHAR;
 typedef BYTE* PBYTE;
 typedef const BYTE* PCBYTE;
 typedef BYTE BOOL;
@@ -14,6 +17,8 @@ typedef USHORT WORD;
 typedef WORD* PWORD;
 typedef const WORD* PCWORD;
 
+typedef long LONG;
+typedef LONG* PLONG;
 typedef unsigned long ULONG;
 typedef ULONG* PULONG;
 typedef ULONG DWORD;

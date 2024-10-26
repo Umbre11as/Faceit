@@ -4,19 +4,18 @@
 
 #include "../../FileSystem/FileSystem.h"
 
-#define LOGO_PATH L"\\Resources\\logo.efimage"
+#define LOGO_PATH L"\\Insane\\Resources\\logo.efimage"
 
-static LOGGER logoLogger = CONSTANT_LOGGER(L"Logo");
+static LOGGER gLogoLogger = CONSTANT_LOGGER(L"Logo");
 
 PIMAGE logoImage = NULL;
 
 EFI_STATUS BlSetupLogo() {
-	//logo.efimage
 	EFI_STATUS status = EFI_SUCCESS;
 	SIZE_T count = 0;
 	PVOLUME volumes;
 	if (EFI_ERROR(status = FsListVolumes(&volumes, &count))) {
-		LogPrint(logoLogger, L"An error while getting volumes: 0x%lX (%d)", status, status);
+		LogPrint(gLogoLogger, L"An error while getting volumes: 0x%lX (%d)", status, status);
 		return status;
 	}
 
@@ -38,7 +37,7 @@ EFI_STATUS BlSetupLogo() {
 	}
 
 	if (fileSize <= 0) {
-		LogPrint(logoLogger, L"File not found (Resources\\logo.efimage)");
+		LogPrint(gLogoLogger, L"File not found (Resources\\logo.efimage)");
 		return EFI_NOT_FOUND;
 	}
 

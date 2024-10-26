@@ -1,7 +1,6 @@
 #include "Bootloader.h"
 
 #include <Uefi.h> // Types
-#include <Library/UefiLib.h> // Print
 #include <Library/UefiBootServicesTableLib.h> // gBS
 
 #include "../Logger/Logger.h"
@@ -12,6 +11,7 @@ LOGGER gLogger = CONSTANT_LOGGER(L"Bootloader");
 
 EFI_STATUS BlMain(IN EFI_SYSTEM_TABLE* SystemTable) {
     EFI_STATUS status = EFI_SUCCESS;
+    BlSetupGraphics();
     LogSetupLogger();
     LogPrint(gLogger, L"wake up, nothing is real");
     LogPrint(gLogger, L"Firmware %s", SystemTable->FirmwareVendor);

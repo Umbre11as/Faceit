@@ -4,6 +4,7 @@
 #include <Protocol/LoadedImage.h> // EFI_LOADED_IMAGE Protocol
 
 #include "../../Utils/Utils.h"
+#include "../Graphics/BLGraphics.h"
 
 #include "ImgArchStartBootApplicationHook.h"
 

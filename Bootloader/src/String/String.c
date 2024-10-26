@@ -9,16 +9,16 @@ SIZE_T SsStringLength(IN const CHAR16* String) {
 	return StrLen(String);
 }
 
-EFI_STATUS SsStringSplit(IN const CHAR16* String, IN const CHAR16 Character, OUT SIZE_T* OutSize, OUT CHAR16** Buffer) {
+CHAR16** SsStringSplit(IN const CHAR16* String, IN const CHAR16 Character, OUT SIZE_T* OutSize, OUT CHAR16** Buffer) {
 	EFI_STATUS status;
 	const SIZE_T length = StrLen(String);
 	if (length == 0)
-		return EFI_INVALID_PARAMETER;
+		return NULL;
 
 	CHAR16** splitten = NULL;
 	status = ExAllocate(length, &splitten);
 	if (EFI_ERROR(status))
-		return status;
+		return NULL;
 
 	SIZE_T lastIndex = 0;
 	SIZE_T cursor = 0;
@@ -28,7 +28,7 @@ EFI_STATUS SsStringSplit(IN const CHAR16* String, IN const CHAR16 Character, OUT
 			status = ExAllocate(length * sizeof(CHAR16), &substring);
 			if (EFI_ERROR(status)) {
 				ExFree(splitten);
-				return status;
+				return NULL;
 			}
 
 			BOOL isEnd = (i == length - 1);
@@ -43,4 +43,14 @@ EFI_STATUS SsStringSplit(IN const CHAR16* String, IN const CHAR16 Character, OUT
 	if (OutSize)
 		*OutSize = cursor;
 	return splitten;
+}
+
+CHAR16* SsAsciiToUnicode(IN const CHAR8* AsciiString) {
+    SIZE_T length = AsciiStrLen(AsciiString);
+
+    CHAR16* name = NULL;
+    ExAllocate((length + 1) * sizeof(CHAR16), (PVOID*) &name);
+    AsciiStrToUnicodeStr(AsciiString, name);
+
+    return name;
 }
