@@ -24,6 +24,8 @@ After all go to `Bootloader/VisualUefi/EDK-II` open `EDK-II.sln` in Visual Studi
 
 ### Bootloader
 
+26.10.2024 - No more needed. Just build project with CMake and qemu will start automatically
+
 If you are in **CLion**, click on `Run Configurations` then `Edit Configurations`. Add new configuration with type Shell Script. Select **type** `Script Text` and paste:
 ```
 .\qemu.exe -name "UEFI Debugger" -drive file=OVMF_CODE-need-smm.fd,if=pflash,format=raw,unit=0,readonly=on -drive file=OVMF_VARS-need-smm.fd,if=pflash,format=raw,unit=1 -drive file=fat:rw:..\..\dist\Release,media=disk,if=virtio,format=raw -drive file=UefiShell.iso,format=raw -m 512 -machine q35,smm=on -nodefaults -vga std -global driver=cfi.pflash01,property=secure,value=on -global ICH9-LPC.disable_s3=1 -device ich9-intel-hda,id=sound0,bus=pcie.0,addr=0x1b -device hda-duplex,id=sound0-codec0,bus=sound0.0,cad=0 -global ICH9-LPC.disable_s3=1 -global ICH9-LPC.disable_s4=1 -soundhw all
