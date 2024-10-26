@@ -203,7 +203,8 @@ Functions:
   - milliseconds - Non-zero number of milliseconds
   <br>
   Credits: https://github.com/vRare/AutoSpitta-x64/blob/master/hacks.c#L9
-<br>
+
+
 - `void Utils::LogToFile(IN String filePath, IN PCSTR text, IN Args... args)`
   <br>
   Formats string and appends text to file
@@ -263,7 +264,7 @@ for (SIZE_T i = 0; i < count; i++) {
 
     FsOpenVolume(&volume);
 
-    if (!EFI_ERROR(FsLocateFile(volume, BOOTMGFW_FILE_PATH, EFI_FILE_MODE_READ, EFI_FILE_READ_ONLY, devicePath))) {
+    if (!EFI_ERROR(FsLocateFile(volume, BOOTMGFW_FILE_PATH, EFI_FILE_MODE_READ, EFI_FILE_READ_ONLY, &devicePath))) {
         FsCloseVolume(volume);
         break;
     }
@@ -274,7 +275,8 @@ for (SIZE_T i = 0; i < count; i++) {
 
 Next, using the device path, load the image and start:
 ```c
-gBS->LoadImage(TRUE, gImageHandle, devicePath, NULL, 0, imageHandle);
+EFI_HANDLE imageHandle;
+gBS->LoadImage(TRUE, gImageHandle, devicePath, NULL, 0, &imageHandle);
 gBS->StartImage(imageHandle, NULL, NULL);
 ```
 
