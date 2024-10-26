@@ -242,3 +242,74 @@ Functions:
 Pipes:
 - `IoctlPipe`. Setups ioctl in driver object. **Limitations**: has big violation vector of anticheat
 - `FunctionPointerSwapPipe`. Hooks any function (current is NtCompareSigningLevels) and checks cookie. **Limitations**: changes windows kernel which triggers the PatchGuard
+
+## 🧠 Explanation
+
+### Bootloader
+
+Where is 2 types of firmware: Bios and UEFI. We are only considering UEFI. UEFI starts from Windows Boot Manager - the file responsible for further system startup. This file located in a special partition and has name `bootmgfw.efi`. Through command in terminal `mountvol X: /S` we can mount this partition and get this file using some utilities (I use Explorer++). Let's go to write custom UEFI Application bootloader to start this file manually.
+
+I will not describe the entire code, you can simply open the VisualUefi/EDK2 documentation to learn more about it.
+Using my FileSystem wrapper I can easily find this file:
+```c
+SIZE_T count = 0;
+PVOLUME volumes;
+FsListVolumes(&volumes, &count);
+
+EFI_DEVICE_PATH* devicePath = NULL;
+
+for (SIZE_T i = 0; i < count; i++) {
+    VOLUME volume = volumes[i];
+
+    FsOpenVolume(&volume);
+
+    if (!EFI_ERROR(FsLocateFile(volume, BOOTMGFW_FILE_PATH, EFI_FILE_MODE_READ, EFI_FILE_READ_ONLY, devicePath))) {
+        FsCloseVolume(volume);
+        break;
+    }
+
+    FsCloseVolume(volume);
+}
+```
+
+Next, using the device path, load the image and start:
+```c
+gBS->LoadImage(TRUE, gImageHandle, devicePath, NULL, 0, imageHandle);
+gBS->StartImage(imageHandle, NULL, NULL);
+```
+
+Take a USB flash (or rename original bootmgfw.efi) and copy built bootloader to `EFI\Boot\bootx64.efi`. In Bios Setup set USB flash to First boot order. Starts successfully.
+
+Naturally, there is something interesting hidden inside this file)). The efi files themselves have PE format (which is quite strange, because Microsoft has nothing to do with UEFI). Opening the file in IDA. Through a ton of shit from boot options and etc, we find BmpLaunchBootEntry:
+
+![](ReadmeAssets/BmpLaunchBootEntry.png)
+
+Then find BmTransferExecution
+
+![](ReadmeAssets/BmTransferExecution.png)
+
+Then find BlImgLoadBootApplication
+
+![](ReadmeAssets/BlImgLoadBootApplication.png)
+
+ImgFwStartBootApplication with appEntry:
+
+![](ReadmeAssets/ImageAppEntry.png)
+
+From reactos:
+
+![](ReadmeAssets/ReactOS_ImageAppEntry.png)
+
+In ImgFwStartBootApplication just jump to ImgArchStartBootApplication. ImageBase and ImageSize points to the `winload.efi`.
+
+Opening winload in IDA. We pay attention to BlImgAllocateImageBuffer and BlpArchSwitchContext in advance, we will need it soon.  Go to OslpMain (which I don't decompile).
+
+![](ReadmeAssets/OslpMain.png)
+
+There we also see OslExecuteTransition, which calls OslFwpKernelSetupPhase1. That's enough. It has only one parameter - OS loader block.
+
+This struct is described in ReactOS:
+
+![](ReadmeAssets/ReactOS_LoaderBlock.png)
+
+After going through the **LoadOrderListHead**, we notice `ntoskrnl.exe`. Hooking BlImgAllocateImageBuffer to allocate buffer for driver and OslFwpKernelSetupPhase1 for mapping. Using the previously obtained ntoskrnl.exe we can easily map driver and resolve imports (See MpMapAndResolveDriver)
