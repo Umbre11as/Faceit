@@ -170,7 +170,8 @@ Functions:
   - process - Process to attach
   <br>
   Credits: https://www.unknowncheats.me/forum/anti-cheat-bypass/489305-read-write-process-attach.html
-<br>
+
+
 - `void Memory::DetachProcess()`
   <br>
   Detaches from previous process
@@ -181,7 +182,8 @@ Functions:
   <br>
   Parameters:
   - virtualAddress - Virtual address
-<br><br>
+
+
 - `NTSTATUS Memory::ReadVirtualMemory(IN PEPROCESS process, OUT PVOID destination, IN PVOID source, IN SIZE_T size)`
   <br>
   Safe reads virtual memory

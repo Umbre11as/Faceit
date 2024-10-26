@@ -1,3 +1,7 @@
 [submodule "Bootloader/VisualUefi"]
 	path = Bootloader/VisualUefi
 	url = https://github.com/ionescu007/VisualUefi
+[submodule "Cheat/thirdparty/imgui"]
+	path = Cheat/thirdparty/imgui
+	url = https://github.com/ocornut/imgui
+	branch = docking
